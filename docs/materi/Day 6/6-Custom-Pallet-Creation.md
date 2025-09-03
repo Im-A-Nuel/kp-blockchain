@@ -159,6 +159,7 @@ Lampirkan minimal 2 bukti berikut di repo (folder contoh: `evidence/day6/`):
 - Screenshot hasil sukses `cargo build -p pallet-audit --release`.
 - Cuplikan struktur folder `frame/pallet-audit/` (Cargo.toml & src/lib.rs terlihat).
 
+![alt text](success.png)
 ---
 
 ## 7) Troubleshooting Singkat
