@@ -1,0 +1,91 @@
+# Materi 7 – Storage & Event di Substrate
+
+## Tujuan
+- Memahami konsep **Storage** dan **Event** pada pallet Substrate.
+- Menambahkan storage sederhana pada pallet `audit`.
+- Memicu event setiap kali storage berubah.
+
+---
+
+## Konsep
+
+### 1. Storage
+- **Storage** = tempat menyimpan data permanen di blockchain.
+- Substrate menyediakan macro `#[pallet::storage]`.
+- Contoh tipe storage:
+  - `StorageValue` → menyimpan 1 nilai.
+  - `StorageMap` → key-value (mirip dictionary).
+  - `StorageDoubleMap` → key-value dengan 2 level key.
+
+### 2. Event
+- **Event** = notifikasi publik yang dipicu saat ada perubahan penting di blockchain.
+- Tujuan: agar user/client bisa tahu extrinsic berhasil.
+- Didefinisikan dengan `#[pallet::event]`.
+
+---
+
+## Implementasi di Pallet Audit
+
+### Storage
+Menyimpan hash terakhir dari data yang di-commit:
+```rust
+#[pallet::storage]
+#[pallet::getter(fn last_hash)]
+pub type LastHash<T: Config> = StorageValue<_, H256, OptionQuery>;
+```
+---
+### Event
+
+```
+#[pallet::event]
+#[pallet::generate_deposit(pub(super) fn deposit_event)]
+pub enum Event<T: Config> {
+    Committed { who: T::AccountId, hash: H256 },
+}
+```
+---
+### Extrinsic
+```
+#[pallet::call]
+impl<T: Config> Pallet<T> {
+    #[pallet::call_index(0)]
+    #[pallet::weight(T::WeightInfo::commit_bytes(data.len() as u32))]
+    pub fn commit(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
+        let who = ensure_signed(origin)?;
+
+        ensure!(!data.is_empty(), Error::<T>::Empty);
+        ensure!((data.len() as u32) <= T::MaxCommitLen::get(), Error::<T>::TooLong);
+
+        let hash = H256::from(blake2_256(&data));
+        LastHash::<T>::put(hash);
+
+        Self::deposit_event(Event::Committed { who, hash });
+        Ok(())
+    }
+}
+```
+---
+### Uji Coba
+#### 1. Build & Run
+```
+cargo build -p solochain-template-node --release
+
+./target/release/solochain-template-node --dev --tmp
+
+```
+---
+#### 2. Tes di Polkadot-JS Apps
+- **Extrinsics** → **audit.** → **commit**
+Masukkan data, misalnya "hello world".
+- Submit extrinsic.
+---
+#### 3. Cek Event
+Di Explorer → Events harus muncul:
+```
+audit.Committed(who, hash)
+```
+---
+#### 4. Cek Storage
+Di **Chain state** → **audit** → **lastHash**
+
+- Harus berisi hash dari "hello world".
