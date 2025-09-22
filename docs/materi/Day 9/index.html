@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Day 9 — Polkadot.js Query Demo</title>
+  <style>body{font:14px system-ui, sans-serif; margin:24px} pre{background:#111; color:#0f0; padding:12px; overflow:auto}</style>
+</head>
+<body>
+  <h1>Polkadot.js Query Demo</h1>
+  <label>WS Endpoint: <input id="ws" value="ws://127.0.0.1:9944" size="35"></label>
+  <button id="connect">Connect & Query</button>
+  <pre id="out">(output JSON)</pre>
+
+  <script type="module">
+    import { ApiPromise, WsProvider } from "https://cdn.skypack.dev/@polkadot/api";
+
+    const $ = (id) => document.getElementById(id);
+    const out = $("out");
+
+    function print(obj){ out.textContent = JSON.stringify(obj, null, 2); }
+
+    document.getElementById("connect").onclick = async () => {
+      try {
+        const endpoint = $("ws").value.trim();
+        const api = await ApiPromise.create({ provider: new WsProvider(endpoint) });
+
+        // 1) Versi runtime & chain
+        const [chain, node, version] = await Promise.all([
+          api.rpc.system.chain(),
+          api.rpc.system.name(),
+          api.rpc.system.version()
+        ]);
+
+        // 2) Ambil block terbaru & hash
+        const header = await api.rpc.chain.getHeader();
+        const blockHash = await api.rpc.chain.getBlockHash(header.number);
+
+        // 3) Query storage: System.Account untuk Alice dev
+        const alice = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+        const account = await api.query.system.account(alice);
+
+        // 4) (Opsional) Query pallet custom, contoh: audit.records(hash)
+        // const hash = api.registry.createType('Hash', '0x...');
+        // const rec = await api.query.audit.records(hash);
+
+        print({
+          chain: chain.toString(),
+          node: node.toString(),
+          version: version.toString(),
+          bestBlock: header.number.toNumber(),
+          blockHash: blockHash.toHex(),
+          aliceAccount: account.toJSON()
+          //, auditRecord: rec?.toJSON()
+        });
+
+        api.disconnect();
+      } catch (e) {
+        print({ error: String(e) });
+      }
+    };
+  </script>
+</body>
+</html>
